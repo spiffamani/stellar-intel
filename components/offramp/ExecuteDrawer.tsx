@@ -90,11 +90,13 @@ export function ExecuteDrawer({ rate, amount, publicKey, onClose, onExecuteStart
       setKycUrl(withdrawResp.url);
       setKycOrigin(url.origin);
 
+      console.log('ExecuteDrawer: Waiting for KYC completion from', url.origin);
       // Wait for KYC completion signalled by KycIframe callbacks.
       const transactionId = await new Promise<string>((resolve, reject) => {
         kycResolveRef.current = resolve;
         kycRejectRef.current = reject;
       });
+      console.log('ExecuteDrawer: KYC complete, txid:', transactionId);
 
       // Clear refs once the Promise has settled.
       kycResolveRef.current = null;

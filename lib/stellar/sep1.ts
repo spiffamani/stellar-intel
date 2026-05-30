@@ -138,14 +138,29 @@ export async function resolveAnchor(domain: string): Promise<Sep1TomlData> {
  * Backwards-compatible wrapper around resolveAnchor.
  * Returns a TomlResult discriminated union so existing callers that check
  * `result.ok` continue to compile and run without changes.
+ * Retries up to 2 times (3 total attempts) if the network fails.
  */
 export async function resolveToml(domain: string): Promise<TomlResult> {
-  try {
-    const data = await resolveAnchor(domain)
-    return { ok: true, data }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  const maxAttempts = 3
+  const budgetMs = 5000
+  const start = Date.now()
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const data = await resolveAnchor(domain)
+      return { ok: true, data }
+    } catch (err) {
+      if (attempt === maxAttempts) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+      const delay = attempt * 250
+      if (Date.now() - start + delay >= budgetMs) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
   }
+  return { ok: false, error: 'Unknown error' }
 }
 
 /**

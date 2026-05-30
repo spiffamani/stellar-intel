@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { resolveAssetParams, getSep24Fee, fetchAnchorFee, initiateWithdraw, _clearInfoCache } from '@/lib/stellar/sep24'
+import { resolveAssetParams, getSep24Fee, fetchAnchorFee, initiateWithdraw, _clearInfoCache, type Sep24InfoResponse } from '@/lib/stellar/sep24'
 import * as sep1 from '@/lib/stellar/sep1'
 
 const TRANSFER_SERVER = 'https://cowrie.exchange/sep24'
 
-function buildMockInfo(newStyle: boolean) {
-  if (newStyle) {
+function buildMockInfo(isSep38Format: boolean): Sep24InfoResponse {
+  if (isSep38Format) {
     return {
       deposit: { 'stellar:USDC:GA5Z...': { enabled: true } },
       withdraw: { 'stellar:USDC:GA5Z...': { enabled: true } },
@@ -14,6 +14,7 @@ function buildMockInfo(newStyle: boolean) {
       transactions: { enabled: true },
     }
   }
+
   return {
     deposit: { USDC: { enabled: true } },
     withdraw: { USDC: { enabled: true } },
@@ -30,25 +31,43 @@ beforeEach(() => {
 })
 
 describe('resolveAssetParams', () => {
-  it('returns old style params if info does not use SEP-38 format', () => {
+  it('returns old style params if info uses old format', () => {
     const info = buildMockInfo(false)
-    const params = resolveAssetParams(info as any, 'withdraw', 'USDC', 'GA5Z...')
-    expect(params).toEqual({ asset_code: 'USDC', asset_issuer: 'GA5Z...' })
+    const params = resolveAssetParams(info, 'withdraw', 'USDC', 'GA5Z...')
+    expect(params.asset_code).toBe('USDC')
+    expect(params.asset_issuer).toBe('GA5Z...')
+    expect(params.asset).toBeUndefined()
   })
 
-  it('returns new style param if info uses SEP-38 format', () => {
+  it('returns new style params if info uses SEP-38 format', () => {
     const info = buildMockInfo(true)
-    const params = resolveAssetParams(info as any, 'withdraw', 'USDC', 'GA5Z...')
-    expect(params).toEqual({ asset: 'stellar:USDC:GA5Z...' })
+    const params = resolveAssetParams(info, 'withdraw', 'USDC', 'GA5Z...')
+    expect(params.asset).toBe('stellar:USDC:GA5Z...')
+    expect(params.asset_code).toBeUndefined()
   })
 
-  it('handles XLM properly', () => {
-    const info = {
+  it('returns new style params for native XLM if info uses SEP-38 format', () => {
+    const info: Sep24InfoResponse = {
       deposit: { 'stellar:native': { enabled: true } },
       withdraw: { 'stellar:native': { enabled: true } },
+      fee: { enabled: true },
+      transaction: { enabled: true },
+      transactions: { enabled: true },
     }
-    const params = resolveAssetParams(info as any, 'withdraw', 'XLM', undefined)
-    expect(params).toEqual({ asset: 'stellar:native' })
+    const params = resolveAssetParams(info, 'withdraw', 'XLM', undefined)
+    expect(params.asset).toBe('stellar:native')
+  })
+
+  describe('resolveAssetParams fallback', () => {
+    it('returns old format with issuer if info missing', () => {
+      const result = resolveAssetParams(null as any, 'withdraw', 'USDC', 'ISSUER_A')
+      expect(result).toEqual({ asset_code: 'USDC', asset_issuer: 'ISSUER_A' })
+    })
+
+    it('returns old format without issuer if info missing and no issuer passed', () => {
+      const result = resolveAssetParams(null as any, 'withdraw', 'USDC', undefined)
+      expect(result).toEqual({ asset_code: 'USDC' })
+    })
   })
 })
 
@@ -67,7 +86,7 @@ describe('getSep24Fee asset formats', () => {
       assetIssuer: 'GA5Z...',
       amount: '100',
       type: 'bank_account',
-    })
+    } as any)
 
     const parsedUrl = new URL(capturedUrl)
     expect(parsedUrl.searchParams.get('asset_code')).toBe('USDC')
@@ -89,7 +108,7 @@ describe('getSep24Fee asset formats', () => {
       assetIssuer: 'GA5Z...',
       amount: '100',
       type: 'bank_account',
-    })
+    } as any)
 
     const parsedUrl = new URL(capturedUrl)
     expect(parsedUrl.searchParams.get('asset')).toBe('stellar:USDC:GA5Z...')
@@ -107,13 +126,18 @@ describe('initiateWithdraw asset formats', () => {
     }))
 
     await initiateWithdraw({
-      transferServer: TRANSFER_SERVER,
+      domain: 'cowrie.exchange',
+      homeDomain: 'cowrie.exchange',
+      TRANSFER_SERVER_SEP0024: TRANSFER_SERVER,
+      capabilities: { sep24: true }
+    } as any, {
       jwt: 'abc',
       assetCode: 'USDC',
       assetIssuer: 'GA5Z...',
       amount: '100',
       account: 'GABC',
-    })
+      type: 'bank_account'
+    } as any)
 
     const body = JSON.parse(capturedBody)
     expect(body.asset_code).toBe('USDC')
@@ -130,13 +154,18 @@ describe('initiateWithdraw asset formats', () => {
     }))
 
     await initiateWithdraw({
-      transferServer: TRANSFER_SERVER,
+      domain: 'cowrie.exchange',
+      homeDomain: 'cowrie.exchange',
+      TRANSFER_SERVER_SEP0024: TRANSFER_SERVER,
+      capabilities: { sep24: true }
+    } as any, {
       jwt: 'abc',
       assetCode: 'USDC',
       assetIssuer: 'GA5Z...',
       amount: '100',
       account: 'GABC',
-    })
+      type: 'bank_account'
+    } as any)
 
     const body = JSON.parse(capturedBody)
     expect(body.asset).toBe('stellar:USDC:GA5Z...')

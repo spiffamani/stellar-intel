@@ -29,6 +29,10 @@ const MOCK_RESOLVED_ANCHOR = {
   WEB_AUTH_ENDPOINT: WEB_AUTH_ENDPOINT,
   SIGNING_KEY: 'G...',
   capabilities: { sep10: true, sep24: true, sep38: false, sep12: false },
+  domain: 'anchor.domain',
+  ANCHOR_QUOTE_SERVER: null,
+  NETWORK_PASSPHRASE: null,
+  CURRENCIES: []
 }
 
 vi.mock('@stellar/freighter-api', () => ({

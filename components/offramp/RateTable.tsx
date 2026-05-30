@@ -1,31 +1,9 @@
 'use client'
+import { useState, useCallback } from 'react'
 import { formatCurrency, formatRate } from '@/lib/utils'
 import type { RateComparison, AnchorRate } from '@/types'
 import { Skeleton } from '@/components/ui/Skeleton'
-
-function sourceBadge(source: AnchorRate['source']): React.ReactNode {
-  switch (source) {
-    case 'sep38':
-      return (
-        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
-          SEP-38
-        </span>
-      )
-    case 'sep24-fee':
-      return null
-    case 'unavailable':
-      return (
-        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
-          Unavailable
-        </span>
-      )
-    default: {
-      const _exhaustive: never = source
-      void _exhaustive
-      return null
-    }
-  }
-}
+import { QuotePill } from '@/components/ui/QuotePill'
 
 interface RateTableProps {
   rates: RateComparison | undefined
@@ -36,7 +14,17 @@ interface RateTableProps {
 }
 
 export function RateTable({ rates, isLoading, refreshInflight, error, onSelectAnchor }: RateTableProps) {
-  if ((isLoading || refreshInflight) && (!rates || rates.rates.length === 0)) {
+  const [expiredAnchorIds, setExpiredAnchorIds] = useState<Set<string>>(new Set())
+
+  const handleExpire = useCallback((anchorId: string) => {
+    setExpiredAnchorIds((prev) => {
+      const next = new Set(prev)
+      next.add(anchorId)
+      return next
+    })
+  }, [])
+
+  if ((isLoading || refreshInflight) && (!rates || (rates.rates.length === 0 && !rates.pending?.length))) {
     return (
       <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
         <Skeleton rows={5} />
@@ -72,7 +60,7 @@ export function RateTable({ rates, isLoading, refreshInflight, error, onSelectAn
             </tr>
           )}
 
-          {!isLoading && !error && rates && rates.rates.length === 0 && (
+          {!isLoading && !error && rates && rates.rates.length === 0 && (!rates.pending || rates.pending.length === 0) && (
             <tr>
               <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
                 No rates available for this corridor.
@@ -81,15 +69,16 @@ export function RateTable({ rates, isLoading, refreshInflight, error, onSelectAn
           )}
 
           {!isLoading && !error && rates?.rates.map((rate) => {
-            const isBest = rate.anchorId === rates.bestRateId
-            const isUnavailable = rate.source === 'unavailable'
+            const isExpired = expiredAnchorIds.has(rate.anchorId)
+            const isUnavailable = rate.source === 'unavailable' || isExpired
+            const isBest = rate.anchorId === rates.bestRateId && !isUnavailable
             const currency = rate.corridorId.split('-')[1]?.toUpperCase() ?? ''
 
             return (
               <tr
                 key={rate.anchorId}
                 className={
-                  isBest && !isUnavailable
+                  isBest
                     ? 'border-t border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20'
                     : 'border-t border-gray-200 dark:border-gray-700'
                 }
@@ -99,12 +88,16 @@ export function RateTable({ rates, isLoading, refreshInflight, error, onSelectAn
                     <span className="font-medium text-gray-900 dark:text-white">
                       {rate.anchorName}
                     </span>
-                    {isBest && !isUnavailable && (
+                    {isBest && (
                       <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                         Best Rate
                       </span>
                     )}
-                    {sourceBadge(rate.source)}
+                    <QuotePill
+                      source={isUnavailable ? 'unavailable' : rate.source}
+                      expiresAt={rate.expiresAt || undefined}
+                      onExpire={() => handleExpire(rate.anchorId)}
+                    />
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
@@ -130,6 +123,35 @@ export function RateTable({ rates, isLoading, refreshInflight, error, onSelectAn
               </tr>
             )
           })}
+
+          {!isLoading && !error && rates?.pending?.map((pendingAnchor) => (
+            <tr
+              key={`pending-${pendingAnchor.anchorId}`}
+              className="border-t border-gray-200 dark:border-gray-700 opacity-60"
+            >
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {pendingAnchor.anchorName}
+                  </span>
+                  <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+                    Fetching...
+                  </span>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">—</td>
+              <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">—</td>
+              <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">—</td>
+              <td className="px-4 py-3 text-right">
+                <button
+                  disabled
+                  className="rounded-lg bg-gray-300 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed dark:bg-gray-700"
+                >
+                  Pending
+                </button>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

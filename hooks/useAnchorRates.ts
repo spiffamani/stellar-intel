@@ -1,23 +1,7 @@
-import useSWR from "swr";
-import type { ApiRatesResponse, RateComparison } from "@/types";
+import useSWR, { useSWRConfig } from "swr";
+import type { RateComparison, AnchorRate } from "@/types";
 import { useState, useCallback } from "react";
-
-async function fetcher([, corridorId, amount]: [string, string, string]): Promise<RateComparison> {
-  const url = new URL("/api/rates", window.location.origin);
-  url.searchParams.set("corridor", corridorId);
-  url.searchParams.set("amount", amount);
-
-  const res = await fetch(url.toString());
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { message?: string }).message ?? `HTTP ${res.status}`);
-  }
-
-  const data: ApiRatesResponse = await res.json();
-  return data.rates;
-}
-
+import { fetchRates } from "@/lib/stellar/rates-engine";
 
 export interface UseAnchorRatesResult {
   rates: RateComparison | undefined;
@@ -27,19 +11,48 @@ export interface UseAnchorRatesResult {
   refreshInflight: boolean;
 }
 
-
 export function useAnchorRates(
   corridorId: string,
   amount: string
 ): UseAnchorRatesResult {
   const [refreshInflight, setRefreshInflight] = useState(false);
+  const { mutate: globalMutate } = useSWRConfig();
+
+  const key = corridorId && amount ? ["rates", corridorId, amount] : null;
 
   const { data, error, isLoading, mutate } = useSWR<
     RateComparison,
     Error
   >(
-    corridorId && amount ? ["/api/rates", corridorId, amount] : null,
-    fetcher,
+    key,
+    async ([, cid, amt]) => {
+      return fetchRates(cid, amt, {
+        onQuoteArrived: (quote: AnchorRate) => {
+          globalMutate(
+            key,
+            (current: RateComparison | undefined) => {
+              if (!current) return current;
+              const newPending = current.pending.filter((p) => p.anchorId !== quote.anchorId);
+              // Avoid duplicates
+              if (current.rates.some((r) => r.anchorId === quote.anchorId)) {
+                return current;
+              }
+              const newRates = [...current.rates, quote];
+              const best = newRates.reduce((a, b) =>
+                (b.totalReceived ?? 0) > (a.totalReceived ?? 0) ? b : a
+              );
+              return {
+                ...current,
+                pending: newPending,
+                rates: newRates,
+                bestRateId: best.anchorId,
+              };
+            },
+            { revalidate: false }
+          );
+        },
+      });
+    },
     {
       refreshInterval: 30_000,
       revalidateOnFocus: true,

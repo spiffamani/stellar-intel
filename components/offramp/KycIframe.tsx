@@ -19,11 +19,13 @@ export function KycIframe({ url, origin, onComplete, onCancel, onError }: KycIfr
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      console.log('KycIframe: Received message', event.type, event.data, event.origin);
       // Verify origin for security
       if (event.origin !== origin) return;
 
       try {
         const data = event.data as KycPostMessage;
+        console.log('KycIframe: Processing message data', data);
 
         if (data.type === 'stellar_transaction_created' && data.transaction_id) {
           onComplete(data.transaction_id);

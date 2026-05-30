@@ -133,6 +133,21 @@ export async function signAndSubmitPayment(
 
 // ─── SDEX path finding (existing) ────────────────────────────────────────────
 
+export interface HorizonSwapRoute {
+  routeId: string;
+  source: 'SDEX' | 'Soroswap' | 'Phoenix' | 'Aquarius';
+  fromAsset: StellarAsset;
+  toAsset: StellarAsset;
+  fromAmount: number;
+  toAmount: number;
+  price: number;
+  priceImpact: number;
+  fee: number;
+  path: StellarAsset[];
+  estimatedTime: string;
+  lastUpdated: Date;
+}
+
 export interface OrderBookData {
   bids: Array<{ price: number; amount: number }>
   asks: Array<{ price: number; amount: number }>
@@ -218,28 +233,34 @@ export async function getStrictSendPaths(
   }
 
   const toAsset = toAssets[0]
+
+  if (!toAsset) return []
+
   return data._embedded.records.map((r, i) => {
     const toAmt = parseFloat(r.destination_amount)
     const fromAmt = parseFloat(r.source_amount)
-    const intermediates: StellarAsset[] = r.path.map((p) => ({
-      code: p.asset_code ?? 'XLM',
-      issuer: p.asset_issuer,
-      name: p.asset_code ?? 'XLM',
-    }))
 
-    return {
-      routeId: `sdex-${i}`,
-      source: 'SDEX' as const,
+    // Parsed asset data
+    const intermediates = r.path.map((p: any) => ({
+      code: p.asset_code ?? 'XLM',
+      issuer: p.asset_issuer ?? '',
+      name: p.asset_code ?? 'XLM',
+    })).filter(Boolean) as StellarAsset[]
+
+    const resultRoute: SwapRoute = {
+      routeId: `sdex-${fromAsset.code}-${toAsset.code}-${i}`,
+      source: 'SDEX',
       fromAsset,
       toAsset,
       fromAmount: fromAmt,
       toAmount: toAmt,
       price: toAmt / fromAmt,
       priceImpact: 0.001,
-      fee: 0.00001,
+      fee: 0,
       path: [fromAsset, ...intermediates, toAsset],
-      estimatedTime: '< 5 seconds',
+      estimatedTime: '~5s',
       lastUpdated: new Date(),
     }
+    return resultRoute
   })
 }

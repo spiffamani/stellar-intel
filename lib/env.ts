@@ -1,9 +1,7 @@
 import { z } from 'zod'
 
 export const envSchema = z.object({
-  NEXT_PUBLIC_STELLAR_NETWORK: z.enum(['mainnet', 'testnet', 'futurenet'], {
-    errorMap: () => ({ message: 'Must be one of: mainnet, testnet, futurenet' }),
-  }),
+  NEXT_PUBLIC_STELLAR_NETWORK: z.enum(['mainnet', 'testnet', 'futurenet'] as [string, ...string[]]).default('mainnet'),
   NEXT_PUBLIC_HORIZON_URL: z.string().url({
     message: 'Must be a valid URL (e.g. https://horizon.stellar.org)',
   }),

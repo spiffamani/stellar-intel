@@ -365,12 +365,12 @@ export function computeRateComparison(
     .map((r) => r.value)
 
   if (rates.length === 0) {
-    return { corridorId, rates: [], bestRateId: '' }
+    return { corridorId, rates: [], pending: [], bestRateId: '' }
   }
 
   const best = rates.reduce((a, b) => ((b.totalReceived ?? 0) > (a.totalReceived ?? 0) ? b : a))
 
-  return { corridorId, rates, bestRateId: best.anchorId }
+  return { corridorId, rates, pending: [], bestRateId: best.anchorId }
 }
 
 // ─── Withdraw interactive flow ────────────────────────────────────────────────

@@ -20,6 +20,10 @@ const RESOLVED_ANCHOR = {
   WEB_AUTH_ENDPOINT: 'https://cowrie.exchange/auth',
   SIGNING_KEY: 'G...',
   capabilities: { sep10: true, sep24: true, sep38: false, sep12: false },
+  domain: 'anchor.domain',
+  ANCHOR_QUOTE_SERVER: null,
+  NETWORK_PASSPHRASE: null,
+  CURRENCIES: []
 }
 
 beforeEach(() => {
@@ -118,11 +122,11 @@ describe('computeRateComparison', () => {
     const results: PromiseSettledResult<AnchorRate>[] = [
       {
         status: 'fulfilled',
-        value: { anchorId: 'cowrie', anchorName: 'Cowrie', corridorId: 'usdc-ngn', fee: 3, feeType: 'flat', exchangeRate: 1580, totalReceived: 97 * 1580, source: 'sep24-fee' as const, updatedAt: new Date() },
+        value: { anchorId: 'cowrie', anchorName: 'Cowrie', corridorId: 'usdc-ngn', fee: 3, feeType: 'flat', exchangeRate: 1580, totalReceived: 97 * 1580, source: 'sep24-fee' as const, updatedAt: new Date(), expiresAt: undefined },
       },
       {
         status: 'fulfilled',
-        value: { anchorId: 'flutterwave', anchorName: 'Flutterwave', corridorId: 'usdc-ngn', fee: 1.5, feeType: 'flat', exchangeRate: 1580, totalReceived: 98.5 * 1580, source: 'sep24-fee' as const, updatedAt: new Date() },
+        value: { anchorId: 'flutterwave', anchorName: 'Flutterwave', corridorId: 'usdc-ngn', fee: 1.5, feeType: 'flat', exchangeRate: 1580, totalReceived: 98.5 * 1580, source: 'sep24-fee' as const, updatedAt: new Date(), expiresAt: undefined },
       },
     ]
 
@@ -138,6 +142,7 @@ describe('computeRateComparison', () => {
     const comparison = computeRateComparison(results, 'usdc-ngn')
     expect(comparison.rates).toHaveLength(0)
     expect(comparison.bestRateId).toBe('')
+    expect(comparison.pending).toEqual([])
   })
 })
 

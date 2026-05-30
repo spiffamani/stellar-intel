@@ -9,6 +9,10 @@ const BASE_PROPS = {
   amountOut: undefined,
   currencyCode: 'NGN',
   stellarTransactionId: undefined,
+  externalTransactionId: undefined,
+  amountInAsset: undefined,
+  amountOutAsset: undefined,
+  amountFee: undefined,
   isLoading: false,
   error: undefined,
 } as const
@@ -26,7 +30,8 @@ describe('StatusTracker', () => {
 
   it('shows "Completed" label when status is completed', () => {
     render(<StatusTracker {...BASE_PROPS} status="completed" />)
-    expect(screen.getByText('Completed')).toBeInTheDocument()
+    const completedLabels = screen.getAllByText('Completed')
+    expect(completedLabels.length).toBeGreaterThan(0)
   })
 
   it('shows "Awaiting your payment" for pending_user_transfer_start status', () => {
@@ -74,13 +79,27 @@ describe('StatusTracker', () => {
         {...BASE_PROPS}
         status="completed"
         stellarTransactionId="abc123def456789012345678"
+        externalTransactionId={undefined}
+        amountInAsset={undefined}
+        amountOutAsset={undefined}
+        amountFee={undefined}
       />
     )
     expect(screen.getByText(/abc123def456789/)).toBeInTheDocument()
   })
 
   it('shows "Live" indicator when status is not terminal', () => {
-    render(<StatusTracker {...BASE_PROPS} status="pending_anchor" />)
+    render(
+      <StatusTracker
+        {...BASE_PROPS}
+        status="pending_anchor"
+        stellarTransactionId={undefined}
+        externalTransactionId={undefined}
+        amountInAsset={undefined}
+        amountOutAsset={undefined}
+        amountFee={undefined}
+      />
+    )
     expect(screen.getByText('Live')).toBeInTheDocument()
   })
 

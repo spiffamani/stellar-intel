@@ -122,7 +122,7 @@ describe('useAnchorAuth', () => {
         expect(result.current.isAuthenticating).toBe(false)
       })
 
-      expect(sep10.authenticate).toHaveBeenCalledWith(ANCHOR, PUBLIC_KEY)
+      expect(sep10.authenticate).toHaveBeenCalledWith({ domain: ANCHOR }, PUBLIC_KEY)
     })
 
     it('returns error message when missing anchor domain', async () => {

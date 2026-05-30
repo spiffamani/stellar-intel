@@ -28,6 +28,7 @@ function createMockRate(
     totalReceived,
     source: 'sep24-fee',
     updatedAt: new Date(),
+    expiresAt: undefined,
     ...overrides,
   }
 }
@@ -95,7 +96,7 @@ describe('computeRateComparison — monotonicity', () => {
 
     // Verify no other rate is higher
     comparison.rates.forEach((rate) => {
-      expect(rate.totalReceived).toBeLessThanOrEqual(bestRate!.totalReceived)
+      expect(rate.totalReceived ?? 0).toBeLessThanOrEqual(bestRate!.totalReceived ?? 0)
     })
   })
 
@@ -196,8 +197,8 @@ describe('computeRateComparison — edge cases', () => {
 describe('computeRateComparison — property tests', () => {
   it('bestRateId always has the maximum totalReceived (for non-empty arrays)', () => {
     fc.assert(
-      fc.property(fc.array(fc.float({ min: 0, max: 10_000, noNaN: true, noDefaultInfinity: true }), { minLength: 1 }), (totalReceivedValues) => {
-        const rates = totalReceivedValues.map((total, idx) =>
+      fc.property(fc.array(fc.float({ min: 0, max: 10_000, noNaN: true, noDefaultInfinity: true }), { minLength: 1 }), (totalReceivedValues: number[]) => {
+        const rates = totalReceivedValues.map((total: number, idx: number) =>
           createMockRate(`anchor-${idx}`, total)
         )
 
@@ -218,8 +219,8 @@ describe('computeRateComparison — property tests', () => {
 
   it('reordering inputs does not change bestRateId', () => {
     fc.assert(
-      fc.property(fc.array(fc.float({ min: 0, max: 10_000, noNaN: true, noDefaultInfinity: true }), { minLength: 1 }), (totalReceivedValues) => {
-        const rates1 = totalReceivedValues.map((total, idx) =>
+      fc.property(fc.array(fc.float({ min: 0, max: 10_000, noNaN: true, noDefaultInfinity: true }), { minLength: 1 }), (totalReceivedValues: number[]) => {
+        const rates1 = totalReceivedValues.map((total: number, idx: number) =>
           createMockRate(`anchor-${idx}`, total)
         )
         const rates2 = [...rates1].reverse()
@@ -243,8 +244,8 @@ describe('computeRateComparison — property tests', () => {
 
   it('output rate array contains exactly as many items as non-rejected inputs', () => {
     fc.assert(
-      fc.property(fc.array(fc.float({ min: 0, max: 10_000, noNaN: true, noDefaultInfinity: true }), { minLength: 1 }), (totalReceivedValues) => {
-        const rates = totalReceivedValues.map((total, idx) =>
+      fc.property(fc.array(fc.float({ min: 0, max: 10_000, noNaN: true, noDefaultInfinity: true }), { minLength: 1 }), (totalReceivedValues: number[]) => {
+        const rates = totalReceivedValues.map((total: number, idx: number) =>
           createMockRate(`anchor-${idx}`, total)
         )
 
