@@ -1,14 +1,31 @@
-import useSWR from "swr";
-import type { ApiRatesResponse, RateComparison } from "@/types";
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import useSWR from 'swr';
+import type { ApiRatesResponse, RateComparison } from '@/types';
+
+const RATES_REFRESH_INTERVAL_MS = 30_000;
+
+function getVisibilitySnapshot(): boolean {
+  return typeof document === 'undefined' || !document.hidden;
+}
+
+function subscribeToVisibilityChange(onStoreChange: () => void): () => void {
+  if (typeof document === 'undefined') return () => {};
+
+  document.addEventListener('visibilitychange', onStoreChange);
+  return () => document.removeEventListener('visibilitychange', onStoreChange);
+}
+
+function useDocumentVisible(): boolean {
+  return useSyncExternalStore(subscribeToVisibilityChange, getVisibilitySnapshot, () => true);
+}
 
 async function fetcher(
   [, corridorId, amount]: [string, string, string],
   { signal }: { signal?: AbortSignal } = {}
 ): Promise<RateComparison> {
-  const url = new URL("/api/rates", window.location.origin);
-  url.searchParams.set("corridor", corridorId);
-  url.searchParams.set("amount", amount);
+  const url = new URL('/api/rates', window.location.origin);
+  url.searchParams.set('corridor', corridorId);
+  url.searchParams.set('amount', amount);
 
   const res = await fetch(url.toString(), { signal });
 
@@ -21,7 +38,6 @@ async function fetcher(
   return data.rates;
 }
 
-
 export interface UseAnchorRatesResult {
   rates: RateComparison | undefined;
   isLoading: boolean;
@@ -30,25 +46,28 @@ export interface UseAnchorRatesResult {
   refreshInflight: boolean;
 }
 
-
-export function useAnchorRates(
-  corridorId: string,
-  amount: string
-): UseAnchorRatesResult {
+export function useAnchorRates(corridorId: string, amount: string): UseAnchorRatesResult {
   const [refreshInflight, setRefreshInflight] = useState(false);
+  const isDocumentVisible = useDocumentVisible();
+  const wasDocumentVisible = useRef(isDocumentVisible);
+  const hasRateQuery = Boolean(corridorId && amount);
+  const swrKey: [string, string, string] | null =
+    hasRateQuery && isDocumentVisible ? ['/api/rates', corridorId, amount] : null;
 
-  const { data, error, isLoading, mutate } = useSWR<
-    RateComparison,
-    Error
-  >(
-    corridorId && amount ? ["/api/rates", corridorId, amount] : null,
-    fetcher,
-    {
-      refreshInterval: 30_000,
-      revalidateOnFocus: true,
-      dedupingInterval: 5_000,
+  const { data, error, isLoading, mutate } = useSWR<RateComparison, Error>(swrKey, fetcher, {
+    refreshInterval: RATES_REFRESH_INTERVAL_MS,
+    refreshWhenHidden: false,
+    revalidateOnFocus: true,
+    dedupingInterval: 5_000,
+  });
+
+  useEffect(() => {
+    if (!wasDocumentVisible.current && isDocumentVisible && hasRateQuery) {
+      void mutate();
     }
-  );
+
+    wasDocumentVisible.current = isDocumentVisible;
+  }, [hasRateQuery, isDocumentVisible, mutate]);
 
   const refresh = useCallback(async () => {
     if (refreshInflight) return;
