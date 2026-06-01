@@ -2,7 +2,10 @@
 import type { WithdrawStatusValue, Sep24Transaction } from '@/types';
 import { formatDeliveredAmount } from '@/lib/format';
 import { Timeline } from './Timeline';
+<<<<<<< HEAD
+=======
 import { STELLAR_EXPERT_URL } from '@/constants';
+>>>>>>> origin/main
 
 interface StatusTrackerProps {
   transactionId: string;
@@ -257,10 +260,13 @@ export function StatusTracker({
       <Timeline status={status} />
     </div>
   );
+<<<<<<< HEAD
+=======
 }
 
 function isValidStellarTxId(id: string): boolean {
   return /^[0-9a-fA-F]{64}$/.test(id);
+>>>>>>> origin/main
 }
 
 function parseAsset(assetStr: string | undefined): string | null {
