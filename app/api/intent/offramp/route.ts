@@ -4,6 +4,7 @@ import { Asset, Networks, TransactionBuilder, Operation, Memo, BASE_FEE, Account
 import { hashIntent } from '@/lib/intent/hash'
 import { USDC_ISSUER } from '@/lib/config'
 import { withRequestLogger } from '@/lib/logger'
+import { recordIntentError, recordIntentSuccess } from '@/lib/metrics'
 import type { Intent } from '@/lib/intent/hash'
 import type { ApiError } from '@/types'
 
@@ -102,6 +103,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       body = await request.json()
     } catch {
       logger.warn({ event: 'invalid_json', message: 'Request body must be valid JSON' })
+      recordIntentError('INVALID_JSON')
       return NextResponse.json<ApiError>(
         { code: 'INVALID_JSON', message: 'Request body must be valid JSON' },
         { status: 400 }
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!parsed.success) {
       const first = parsed.error.issues[0]
       logger.warn({ event: 'validation_failed', issues: parsed.error.issues })
+      recordIntentError('VALIDATION_ERROR')
       return NextResponse.json<ApiError>(
         {
           code: 'VALIDATION_ERROR',
@@ -128,6 +131,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!route) {
       logger.warn({ event: 'no_route', sourceAsset: intent.sourceAsset, destinationAsset: intent.destinationAsset })
+      recordIntentError('NO_ROUTE')
       return NextResponse.json<ApiError>(
         {
           code: 'NO_ROUTE',
@@ -142,6 +146,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!anchorEntry) {
       logger.error({ event: 'anchor_config_missing', corridorId: route.corridorId })
+      recordIntentError('NO_ROUTE')
       return NextResponse.json<ApiError>(
         { code: 'NO_ROUTE', message: 'Anchor configuration missing' },
         { status: 400 }
@@ -160,6 +165,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     } catch (err) {
       logger.error({ event: 'tx_build_failed', error: err instanceof Error ? err.message : 'Unknown error' })
+      recordIntentError('TX_BUILD_FAILED')
       return NextResponse.json<ApiError>(
         {
           code: 'TX_BUILD_FAILED',
@@ -170,6 +176,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     logger.info({ event: 'intent_response', corridorId: route.corridorId, quoteId })
+    recordIntentSuccess()
     return NextResponse.json<OfframpIntentResponse>({ route, unsignedTx, quoteId })
   })
 }

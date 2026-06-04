@@ -4,6 +4,7 @@ import { authenticate, NetworkMismatchError } from '@/lib/stellar/sep10';
 import { initiateWithdraw, getWithdrawTransactionRecord } from '@/lib/stellar/sep24';
 import { getResolvedAnchorById } from '@/lib/stellar/anchors';
 import { buildWithdrawPayment, signAndSubmitPayment } from '@/lib/stellar/horizon';
+import { measureClient } from '@/lib/metrics';
 import type { AnchorRate, ExecuteDrawerStep } from '@/types';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { KycIframe } from './KycIframe';
@@ -225,7 +226,9 @@ function ExecuteDrawerContent({
 
       // Step 6 — Sign and submit
       setStep('signing');
-      const result = await signAndSubmitPayment(tx);
+      const result = await measureClient('tx_submit_latency', () => signAndSubmitPayment(tx), {
+        anchorId: anchor.homeDomain,
+      });
       setTxHash(result.hash ?? null);
       setStep('done');
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import useSWR from 'swr';
+import { measureClient } from '@/lib/metrics';
 import type { ApiRatesResponse, AnchorRate, RateComparison } from '@/types';
 
 const RATES_REFRESH_INTERVAL_MS = 30_000;
@@ -42,19 +43,25 @@ async function fetcher(
   [, corridorId, amount]: [string, string, string],
   { signal }: { signal?: AbortSignal } = {}
 ): Promise<RateComparison> {
-  const url = new URL('/api/rates', window.location.origin);
-  url.searchParams.set('corridor', corridorId);
-  url.searchParams.set('amount', amount);
+  return measureClient(
+    'quote_fetch_latency',
+    async () => {
+      const url = new URL('/api/rates', window.location.origin);
+      url.searchParams.set('corridor', corridorId);
+      url.searchParams.set('amount', amount);
 
-  const res = await fetch(url.toString(), { signal });
+      const res = await fetch(url.toString(), { signal });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { message?: string }).message ?? `HTTP ${res.status}`);
-  }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { message?: string }).message ?? `HTTP ${res.status}`);
+      }
 
-  const data: ApiRatesResponse = await res.json();
-  return data.rates;
+      const data: ApiRatesResponse = await res.json();
+      return data.rates;
+    },
+    { anchorId: corridorId }
+  );
 }
 
 export interface UseAnchorRatesResult {
