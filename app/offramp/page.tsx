@@ -36,8 +36,7 @@ function OfframpContent() {
   const [trackingAnchorHomeDomain, setTrackingAnchorHomeDomain] = useState<string | null>(null);
 
   const { isConnected, publicKey, network } = useWallet();
-  const { rates, isLoading, error, mutate, refreshInflight } = useAnchorRates(corridorId, amount);
-
+  const { rates, anchorErrors, isLoading, error, mutate, refreshInflight } = useAnchorRates(corridorId, amount);
   const withdrawStatus = useWithdrawStatus(
     trackingTransferServer,
     trackingTransactionId,
@@ -135,12 +134,14 @@ function OfframpContent() {
         </div>
         <RateTable
           rates={rates}
+          anchorErrors={anchorErrors}
           isLoading={isLoading}
           refreshInflight={refreshInflight}
           error={error}
           onSelectAnchor={handleSelectAnchor}
           executeDisabled={network !== 'PUBLIC'}
         />
+        
       </div>
 
       {trackingTransactionId && (

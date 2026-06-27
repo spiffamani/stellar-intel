@@ -80,4 +80,48 @@ describe('RateTable', () => {
     );
     expect(screen.getByText('No rates available for this corridor.')).toBeInTheDocument();
   });
-});
+
+  it('renders an unavailable row for each anchorError', () => {
+    render(
+      <RateTable
+        rates={mockRates}
+        anchorErrors={[{ anchorId: 'bitso', anchorName: 'Bitso', reason: 'SEP-38 timed out after 8000ms' }]}
+        isLoading={false}
+        error={undefined}
+        onSelectAnchor={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Bitso')).toBeInTheDocument();
+    const unavailableBtn = screen.getByRole('button', { name: /unavailable/i });
+    expect(unavailableBtn).toBeDisabled();
+  });
+
+  it('unavailable row button has the error reason as its title attribute', () => {
+    render(
+      <RateTable
+        rates={mockRates}
+        anchorErrors={[{ anchorId: 'bitso', anchorName: 'Bitso', reason: 'SEP-38 timed out after 8000ms' }]}
+        isLoading={false}
+        error={undefined}
+        onSelectAnchor={vi.fn()}
+      />
+    );
+    const unavailableBtn = screen.getByRole('button', { name: /unavailable/i });
+    expect(unavailableBtn).toHaveAttribute('title', 'SEP-38 timed out after 8000ms');
+  });
+
+  it('does not show empty state when there are no rates but there are anchorErrors', () => {
+    const emptyRates: RateComparison = { ...mockRates, rates: [], bestRateId: '' };
+    render(
+      <RateTable
+        rates={emptyRates}
+        anchorErrors={[{ anchorId: 'bitso', anchorName: 'Bitso', reason: 'SEP-38 timed out after 8000ms' }]}
+        isLoading={false}
+        error={undefined}
+        onSelectAnchor={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('No rates available for this corridor.')).not.toBeInTheDocument();
+    expect(screen.getByText('Bitso')).toBeInTheDocument();
+  });
+}); 
